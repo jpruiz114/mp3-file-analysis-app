@@ -1,31 +1,5 @@
 import { CHANNEL_MODE_MONO, parseFrameHeader } from '../../src/mp3/frameHeader';
-
-/** Builds a synthetic 4-byte MPEG-1 Layer III frame header for test cases. */
-function buildHeader(opts: {
-  bitrateIndex: number;
-  sampleRateIndex: number;
-  padding?: boolean;
-  protectionBit?: boolean; // true = no CRC (matches the field's real-world meaning)
-  channelMode?: number;
-  versionBits?: number;
-  layerBits?: number;
-}): Buffer {
-  const {
-    bitrateIndex,
-    sampleRateIndex,
-    padding = false,
-    protectionBit = true,
-    channelMode = 0,
-    versionBits = 0b11,
-    layerBits = 0b01,
-  } = opts;
-
-  const b1 = 0xe0 | (versionBits << 3) | (layerBits << 1) | (protectionBit ? 1 : 0);
-  const b2 = (bitrateIndex << 4) | (sampleRateIndex << 2) | ((padding ? 1 : 0) << 1);
-  const b3 = channelMode << 6;
-
-  return Buffer.from([0xff, b1, b2, b3]);
-}
+import { buildHeader } from '../support';
 
 describe('parseFrameHeader', () => {
   it('parses the sample fixture bytes (FF FB 50 00) to the correct header fields', () => {

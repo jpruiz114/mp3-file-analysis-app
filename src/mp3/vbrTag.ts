@@ -23,6 +23,12 @@ const FRAME_HEADER_BYTES = 4;
 const CRC_BYTES = 2;
 const STEREO_SIDE_INFO_BYTES = 32;
 const MONO_SIDE_INFO_BYTES = 17;
+// VBRI's offset is a Fraunhofer-encoder convention that is always fixed and
+// channel-mode-independent — unlike Xing/Info, whose offset depends on side-info
+// size. This numerically equals STEREO_SIDE_INFO_BYTES, but the two are conceptually
+// unrelated; kept as a separate constant so no one "fixes" this to use
+// sideInfoBytes(header) for mono frames, which would be wrong.
+const VBRI_FIXED_TAG_OFFSET_BYTES = 32;
 
 function crcBytes(header: ValidHeader): number {
   return header.hasCrc ? CRC_BYTES : 0;
@@ -55,7 +61,7 @@ function matchMagicAt(buf: Buffer, offset: number): MagicMatch {
 export function detectVbrTag(buf: Buffer, frameOffset: number, header: ValidHeader): VbrTagResult {
   const afterHeader = frameOffset + FRAME_HEADER_BYTES + crcBytes(header);
   const xingInfoOffset = afterHeader + sideInfoBytes(header);
-  const vbriOffset = afterHeader + STEREO_SIDE_INFO_BYTES;
+  const vbriOffset = afterHeader + VBRI_FIXED_TAG_OFFSET_BYTES;
 
   const xingInfoMatch = matchMagicAt(buf, xingInfoOffset);
   if (xingInfoMatch === 'insufficient-data') return { kind: 'insufficient-data' };

@@ -94,6 +94,17 @@ real `fs.createReadStream`, so this isn't a one-off manual check.
 - **Large-file benchmarking** — the design is O(1) memory by construction, but I
   haven't measured throughput against a multi-GB synthetic file to confirm there's no
   unexpected quadratic behavior hiding in the resync/carry-over logic.
+- **Avoid the full-chunk copy on every `write()` call.** `FrameCounter.write()`
+  currently does `Buffer.concat([carryOver, chunk])` whenever carry-over is pending
+  (i.e., on almost every call once a file is mid-stream), copying the entire incoming
+  chunk even though only a small stitched prefix (a few dozen bytes) is actually
+  needed to resolve the in-flight header/tag check. This roughly doubles the bytes
+  copied over a file's lifetime — a real but constant-factor cost, not a memory or
+  correctness issue (peak memory stays O(1) either way). Fixing it means scanning a
+  small stitched prefix first, then continuing to scan the original chunk buffer
+  directly without a copy — meaningfully more bookkeeping in exactly the trickiest,
+  most heavily-tested part of this codebase, so I left it as a documented tradeoff
+  (see the comment on `FrameCounter.write()`) rather than risk it under time pressure.
 - **Forward cross-validation** of frame sync matches (confirming a second sync exists
   at `offset + frameSize` before accepting a frame) — the current header-field
   validation already rejects the vast majority of false positives, and a dedicated

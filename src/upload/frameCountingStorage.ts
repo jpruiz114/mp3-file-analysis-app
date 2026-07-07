@@ -1,6 +1,6 @@
 import type { Request } from 'express';
 import type { StorageEngine } from 'multer';
-import { FrameCounter, type FrameCounterLike } from '../mp3/frameCounter';
+import { FrameCounter } from '../mp3/frameCounter';
 
 // Augmenting Express's own namespace-based Multer.File type requires matching its
 // declaration shape (`declare global { namespace Express { namespace Multer { ... } } }`);
@@ -33,10 +33,8 @@ type HandleFileCallback = (error?: unknown, info?: Partial<Express.Multer.File>)
  * `'data'` handler would otherwise crash the whole process.
  */
 export class FrameCountingStorage implements StorageEngine {
-  constructor(private readonly createCounter: () => FrameCounterLike = () => new FrameCounter()) {}
-
   _handleFile(_req: Request, file: Express.Multer.File, callback: HandleFileCallback): void {
-    const counter = this.createCounter();
+    const counter = new FrameCounter();
     let settled = false;
 
     const settle: HandleFileCallback = (error, info) => {

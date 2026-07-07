@@ -1,8 +1,8 @@
 import type { ErrorRequestHandler } from 'express';
-import { MulterError } from 'multer';
+import { MulterError, type ErrorCode as MulterErrorCode } from 'multer';
 import { AppError } from '../errors';
 
-const FILE_SIZE_MULTER_CODE = 'LIMIT_FILE_SIZE';
+const FILE_SIZE_MULTER_CODE: MulterErrorCode = 'LIMIT_FILE_SIZE';
 
 /**
  * Single Express error-handling middleware: maps AppError subclasses,

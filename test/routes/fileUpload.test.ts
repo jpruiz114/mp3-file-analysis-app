@@ -1,11 +1,9 @@
 import * as fs from 'fs';
 import * as http from 'http';
-import * as path from 'path';
 import request from 'supertest';
 import { createApp } from '../../src/app';
-
-const FIXTURE_PATH = path.join(__dirname, '..', 'fixtures', 'sample.mp3');
-const EXPECTED_FIXTURE_FRAME_COUNT = 6089;
+import { FrameCounter } from '../../src/mp3/frameCounter';
+import { EXPECTED_FIXTURE_FRAME_COUNT, FIXTURE_PATH } from '../support';
 
 describe('POST /file-upload', () => {
   it('returns 200 and the correct frame count for the real sample fixture', async () => {
@@ -96,21 +94,20 @@ describe('POST /file-upload', () => {
   });
 
   it('returns 500 with a generic message when the counter throws internally', async () => {
-    const app = createApp({
-      createCounter: () => ({
-        write: () => {
-          throw new Error('simulated internal parser failure');
-        },
-        end: () => {},
-        count: 0,
-      }),
+    const writeSpy = jest.spyOn(FrameCounter.prototype, 'write').mockImplementation(() => {
+      throw new Error('simulated internal parser failure');
     });
 
-    const response = await request(app).post('/file-upload').attach('file', FIXTURE_PATH);
+    try {
+      const app = createApp();
+      const response = await request(app).post('/file-upload').attach('file', FIXTURE_PATH);
 
-    expect(response.status).toBe(500);
-    expect(response.body.error.code).toBe('INTERNAL_ERROR');
-    expect(response.body.error.message).not.toMatch(/simulated internal parser failure/);
+      expect(response.status).toBe(500);
+      expect(response.body.error.code).toBe('INTERNAL_ERROR');
+      expect(response.body.error.message).not.toMatch(/simulated internal parser failure/);
+    } finally {
+      writeSpy.mockRestore();
+    }
   });
 
   it('asserts Content-Type is application/json on a successful response', async () => {

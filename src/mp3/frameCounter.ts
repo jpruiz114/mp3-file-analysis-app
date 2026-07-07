@@ -44,7 +44,20 @@ export class FrameCounter implements FrameCounterLike {
   private hasSeenFirstAudioFrame = false;
   private frameCount = 0;
 
-  /** Feed the next chunk of the file as it arrives. */
+  /**
+   * Feed the next chunk of the file as it arrives.
+   *
+   * When carry-over is pending, this concatenates (copies) the whole
+   * incoming chunk rather than just the small stitched prefix needed to
+   * resolve the in-flight header/tag check. Carry-over is normally only a
+   * few dozen bytes (see the class doc comment), so this roughly doubles
+   * the number of bytes copied over the file's lifetime — a real but
+   * constant-factor cost, not a memory or correctness issue. Splitting the
+   * scan into "small stitched prefix, then the original chunk without a
+   * copy" would remove it, at the cost of meaningfully more complexity in
+   * exactly the trickiest part of this class; left as a follow-up (see
+   * README "what I'd do with more time") rather than risked here.
+   */
   write(chunk: Buffer): void {
     if (this.state === 'done') return;
 
@@ -59,12 +72,10 @@ export class FrameCounter implements FrameCounterLike {
     }
 
     if (this.pendingFrameSkip > 0) {
-      if (this.pendingFrameSkip >= buf.length) {
-        this.pendingFrameSkip -= buf.length;
-        return; // still inside a prior frame's body
-      }
-      buf = buf.subarray(this.pendingFrameSkip);
-      this.pendingFrameSkip = 0;
+      const { remaining, rest } = this.consumeSkip(this.pendingFrameSkip, buf);
+      this.pendingFrameSkip = remaining;
+      if (remaining > 0) return; // still inside a prior frame's body
+      buf = rest;
     }
 
     this.scanFrames(buf);
@@ -88,15 +99,22 @@ export class FrameCounter implements FrameCounterLike {
       this.remainingId3Skip = getId3v2SkipLength(buf);
     }
 
-    if (this.remainingId3Skip <= buf.length) {
-      const rest = buf.subarray(this.remainingId3Skip);
-      this.remainingId3Skip = 0;
-      return rest;
-    }
+    const { remaining, rest } = this.consumeSkip(this.remainingId3Skip, buf);
+    this.remainingId3Skip = remaining;
+    return remaining === 0 ? rest : undefined;
+  }
 
-    // The whole chunk is still inside the ID3v2 tag — discard it without buffering.
-    this.remainingId3Skip -= buf.length;
-    return undefined;
+  /**
+   * Consumes up to `remaining` bytes from the front of `buf` without
+   * buffering them, used by both the ID3v2-tag skip and the
+   * already-counted-frame-body skip — both are the same "discard N bytes
+   * across an unknown number of future chunks" problem.
+   */
+  private consumeSkip(remaining: number, buf: Buffer): { remaining: number; rest: Buffer } {
+    if (remaining <= buf.length) {
+      return { remaining: 0, rest: buf.subarray(remaining) };
+    }
+    return { remaining: remaining - buf.length, rest: Buffer.alloc(0) };
   }
 
   private scanFrames(buf: Buffer): void {

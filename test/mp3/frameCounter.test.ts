@@ -1,42 +1,6 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import { FrameCounter } from '../../src/mp3/frameCounter';
-
-const FIXTURE_PATH = path.join(__dirname, '..', 'fixtures', 'sample.mp3');
-const EXPECTED_FIXTURE_FRAME_COUNT = 6089;
-
-/** Builds one full, zero-payload MPEG-1 Layer III frame (header + zero-filled body). */
-function buildFrame(bitrateIndex = 5, sampleRateIndex = 0, padding = false): Buffer {
-  const b1 = 0xe0 | (0b11 << 3) | (0b01 << 1) | 1; // MPEG-1, Layer III, no CRC
-  const b2 = (bitrateIndex << 4) | (sampleRateIndex << 2) | ((padding ? 1 : 0) << 1);
-  const b3 = 0x00; // stereo — zero payload never matches Xing/Info/VBRI magic
-
-  const bitrateKbps = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0][
-    bitrateIndex
-  ]!;
-  const sampleRateHz = [44100, 48000, 32000, 0][sampleRateIndex]!;
-  const frameSize = Math.floor((144 * bitrateKbps * 1000) / sampleRateHz) + (padding ? 1 : 0);
-
-  const buf = Buffer.alloc(frameSize, 0);
-  buf.writeUInt8(0xff, 0);
-  buf.writeUInt8(b1, 1);
-  buf.writeUInt8(b2, 2);
-  buf.writeUInt8(b3, 3);
-  return buf;
-}
-
-function buildId3Header(declaredSize: number): Buffer {
-  const buf = Buffer.alloc(10, 0);
-  buf.write('ID3', 0, 'ascii');
-  buf.writeUInt8(4, 3); // version
-  buf.writeUInt8(0, 4); // revision
-  buf.writeUInt8(0, 5); // flags (no footer)
-  buf.writeUInt8((declaredSize >> 21) & 0x7f, 6);
-  buf.writeUInt8((declaredSize >> 14) & 0x7f, 7);
-  buf.writeUInt8((declaredSize >> 7) & 0x7f, 8);
-  buf.writeUInt8(declaredSize & 0x7f, 9);
-  return buf;
-}
+import { buildFrame, buildId3Header, EXPECTED_FIXTURE_FRAME_COUNT, FIXTURE_PATH } from '../support';
 
 describe('FrameCounter', () => {
   it('counts exactly 6089 frames for the real sample fixture fed as a single chunk', () => {
