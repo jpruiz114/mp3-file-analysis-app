@@ -12,13 +12,6 @@ const MAX_CARRY_OVER_BYTES = 3000;
 
 type State = 'skip-id3' | 'scan-frames' | 'done';
 
-/** The subset of FrameCounter's public surface consumers depend on — lets tests inject a fake. */
-export interface FrameCounterLike {
-  write(chunk: Buffer): void;
-  end(): void;
-  readonly count: number;
-}
-
 /**
  * Consumes a streamed MP3 file as a sequence of Buffer chunks and counts its
  * MPEG-1 Audio Layer III frames incrementally, in O(1) memory relative to
@@ -34,7 +27,7 @@ export interface FrameCounterLike {
  * non-MP3 stream just advances the scan one byte at a time without ever
  * accumulating a large carry-over.
  */
-export class FrameCounter implements FrameCounterLike {
+export class FrameCounter {
   private state: State = 'skip-id3';
   private carryOver: Buffer = Buffer.alloc(0);
   /** -1 until the ID3v2 header itself has been read and the true skip length is known. */

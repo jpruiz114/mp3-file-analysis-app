@@ -31,7 +31,19 @@ describe('POST /file-upload', () => {
     const response = await request(app).post('/file-upload').attach('wrongField', FIXTURE_PATH);
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toBeDefined();
+    expect(response.body.error.code).toBe('INVALID_MULTIPART');
+  });
+
+  it('returns 400 INVALID_MULTIPART (not 500) when the multipart Content-Type is missing its boundary', async () => {
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/file-upload')
+      .set('Content-Type', 'multipart/form-data') // no boundary= parameter
+      .send('irrelevant body');
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe('INVALID_MULTIPART');
   });
 
   it('returns 400 when the request is not multipart/form-data', async () => {
@@ -66,7 +78,7 @@ describe('POST /file-upload', () => {
       .attach('file', FIXTURE_PATH);
 
     expect(response.status).toBe(400);
-    expect(response.body.error).toBeDefined();
+    expect(response.body.error.code).toBe('INVALID_MULTIPART');
   });
 
   it('returns 422 for a non-MP3 file with no crash and no false frame count', async () => {

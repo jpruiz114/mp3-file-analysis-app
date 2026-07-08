@@ -1,7 +1,27 @@
 import { createApp } from './app';
 
-const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
-const maxFileSizeBytes = process.env.MAX_UPLOAD_BYTES ? Number(process.env.MAX_UPLOAD_BYTES) : undefined;
+const DEFAULT_PORT = 3000;
+
+function parsePort(raw: string | undefined): number {
+  if (raw === undefined) return DEFAULT_PORT;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 65535) {
+    throw new Error(`Invalid PORT env var: "${raw}" — must be an integer between 0 and 65535.`);
+  }
+  return parsed;
+}
+
+function parseMaxUploadBytes(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Invalid MAX_UPLOAD_BYTES env var: "${raw}" — must be a positive number.`);
+  }
+  return parsed;
+}
+
+const PORT = parsePort(process.env.PORT);
+const maxFileSizeBytes = parseMaxUploadBytes(process.env.MAX_UPLOAD_BYTES);
 
 const app = createApp({ maxFileSizeBytes });
 

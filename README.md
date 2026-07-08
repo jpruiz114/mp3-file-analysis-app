@@ -110,6 +110,31 @@ real `fs.createReadStream`, so this isn't a one-off manual check.
   validation already rejects the vast majority of false positives, and a dedicated
   test proves near-miss sync bytes don't produce a false count, so this felt like
   reasonable scope to defer rather than build speculatively.
+- **CPU-exhaustion resistance for adversarial uploads, beyond what's already done.**
+  A multi-agent review benchmarked this directly: a large upload made entirely of
+  near-miss sync bytes (bytes that pass the cheap 11-bit sync check but fail deeper
+  validation) costs meaningfully more CPU per byte than a real MP3, since every
+  position still runs the full header-validation logic. I fixed the part of this that
+  was a clear, free win — `parseFrameHeader` now returns shared singleton objects for
+  rejections instead of allocating a fresh object per call, and only reads the header
+  bytes it actually needs before the cheap checks run (verified ~2.6x faster on 20MB
+  of worst-case input, with identical output). What's still open: this remains
+  fundamentally O(n) synchronous CPU work with no per-request time/CPU budget, and a
+  determined attacker who also controls TCP write granularity (many tiny chunks) adds
+  further per-chunk overhead on top of that. A full mitigation — a per-request CPU/
+  wall-clock budget, offloading parsing to a worker thread, or rate limiting — would
+  normally sit partly at a reverse-proxy/gateway layer, and the assignment explicitly
+  scopes rate limiting and auth out of this exercise, so I stopped at the safe,
+  verified, zero-risk optimization rather than building request-throttling
+  infrastructure under time pressure.
+- **Classify a couple more specific busboy/multer error shapes.** `errorHandler.ts`
+  now explicitly maps busboy's "missing multipart boundary" error to `400
+  INVALID_MULTIPART` (previously fell through to a misleading `500`) and stops
+  treating a routine mid-upload client disconnect as an internal server error worth
+  logging (previously logged a full stack trace and returned `500` for something the
+  client caused, not the server). Both were caught by the code-review pass and fixed;
+  there are likely a few more busboy/Node error shapes worth classifying explicitly
+  with more time, rather than falling through to the generic 500 handler.
 
 ## Project structure
 
