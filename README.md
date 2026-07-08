@@ -81,6 +81,22 @@ The project's own test suite (`npm test`) asserts the exact value (6089) against
 real fixture, both as a single chunk and split into many small chunks and through a
 real `fs.createReadStream`, so this isn't a one-off manual check.
 
+**Additional manual verification against real-world files.** Beyond the committed
+sample fixture, the running server was manually tested against two full-length,
+independently-sourced MP3 files (not included in this repo) and cross-checked against
+`ffprobe -count_frames` on each — both matched exactly, with no adjustment to the
+parser or its convention:
+
+| File | App's `frameCount` | `ffprobe -count_frames` |
+| --- | ---: | ---: |
+| Zachary Zamarippa – Truth In Part | 16870 | 16870 |
+| Andy Gregory – Global Progression 058 | 134224 | 134224 |
+
+This is a stronger signal than the single-fixture check alone: it confirms the
+Xing-tag-exclusion convention and the frame-size/offset math generalize correctly to
+files from different encoders/sources, not just the one sample provided with the
+assignment.
+
 ## What I'd do with more time
 
 - **CI pipeline** (GitHub Actions) running lint + test on every push — straightforward
