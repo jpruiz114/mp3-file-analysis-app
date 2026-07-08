@@ -134,4 +134,60 @@ describe('FrameCounter', () => {
     }).not.toThrow();
     expect(counter.count).toBe(0);
   });
+
+  it('carries over a first chunk shorter than the 10-byte ID3v2 header', () => {
+    const counter = new FrameCounter();
+    const frame = buildFrame();
+
+    counter.write(frame.subarray(0, 5)); // fewer than 10 bytes — can't identify ID3v2 yet
+    counter.write(frame.subarray(5));
+    counter.end();
+
+    expect(counter.count).toBe(1);
+  });
+
+  it('carries over when the first frame header is valid but too short to resolve the VBR-tag check', () => {
+    const counter = new FrameCounter();
+    const frame = buildFrame();
+
+    counter.write(frame.subarray(0, 20)); // valid header, but short of the ~40-byte tag-check window
+    counter.write(frame.subarray(20));
+    counter.end();
+
+    expect(counter.count).toBe(1);
+  });
+
+  it('throws if carry-over would exceed the defensive MAX_CARRY_OVER_BYTES cap', () => {
+    const counter = new FrameCounter();
+    const oversized = Buffer.alloc(3001, 0);
+
+    expect(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (counter as any).setCarryOver(oversized);
+    }).toThrow(/exceeded 3000 bytes/);
+  });
+
+  it('ignores writes after end() has been called', () => {
+    const counter = new FrameCounter();
+    counter.write(buildFrame());
+    counter.end();
+    const countAfterEnd = counter.count;
+
+    counter.write(buildFrame()); // should be a no-op
+
+    expect(counter.count).toBe(countAfterEnd);
+  });
+
+  it('keeps a pending frame-body skip pending across more than one subsequent chunk', () => {
+    const counter = new FrameCounter();
+    counter.write(buildFrame()); // frame A, primes scan-frames state — count is now 1
+    const frameB = buildFrame(); // 208 bytes
+
+    counter.write(frameB.subarray(0, 4)); // header only -> counted, pendingFrameSkip = 204
+    counter.write(frameB.subarray(4, 14)); // 10 more bytes -> still 194 pending, stays pending
+    counter.write(frameB.subarray(14)); // remaining 194 bytes -> completes the frame
+    counter.end();
+
+    expect(counter.count).toBe(2);
+  });
 });
