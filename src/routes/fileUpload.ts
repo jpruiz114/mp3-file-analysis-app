@@ -8,13 +8,15 @@ const DEFAULT_MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024;
 export interface FileUploadRouterOptions {
   /** Overrides the default 200MB upload cap — mainly for tests. */
   maxFileSizeBytes?: number;
+  /** Overrides the default 5-second per-upload processing time budget — mainly for tests. */
+  budgetMs?: number;
 }
 
 export function createFileUploadRouter(options: FileUploadRouterOptions = {}): Router {
   const maxFileSizeBytes = options.maxFileSizeBytes ?? DEFAULT_MAX_FILE_SIZE_BYTES;
 
   const upload = multer({
-    storage: new FrameCountingStorage(),
+    storage: new FrameCountingStorage({ budgetMs: options.budgetMs }),
     limits: {
       fileSize: maxFileSizeBytes,
       files: 1,

@@ -19,3 +19,13 @@ export function parseMaxUploadBytes(raw: string | undefined): number | undefined
   }
   return parsed;
 }
+
+/** Parses and validates the UPLOAD_TIME_BUDGET_MS env var, failing loudly on a malformed value. */
+export function parseUploadTimeBudgetMs(raw: string | undefined): number | undefined {
+  if (raw === undefined) return undefined;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(`Invalid UPLOAD_TIME_BUDGET_MS env var: "${raw}" — must be a positive number.`);
+  }
+  return parsed;
+}

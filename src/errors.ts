@@ -3,6 +3,7 @@ export type ErrorCode =
   | 'INVALID_MULTIPART'
   | 'FILE_TOO_LARGE'
   | 'UNPARSEABLE_MP3'
+  | 'UPLOAD_TIMEOUT'
   | 'INTERNAL_ERROR';
 
 export class AppError extends Error {
@@ -33,6 +34,16 @@ export class UnparseableMp3Error extends AppError {
       'UNPARSEABLE_MP3',
       422,
       'The uploaded file could not be parsed as an MPEG-1 Audio Layer III (.mp3) file (no valid frames found).',
+    );
+  }
+}
+
+export class UploadTimeoutError extends AppError {
+  constructor() {
+    super(
+      'UPLOAD_TIMEOUT',
+      408,
+      'The upload took too long to process and was aborted.',
     );
   }
 }

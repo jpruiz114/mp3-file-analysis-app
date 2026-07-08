@@ -1,4 +1,4 @@
-import { parsePort, parseMaxUploadBytes } from '../src/config';
+import { parsePort, parseMaxUploadBytes, parseUploadTimeBudgetMs } from '../src/config';
 
 describe('parsePort', () => {
   it('defaults to 3000 when PORT is undefined', () => {
@@ -49,5 +49,27 @@ describe('parseMaxUploadBytes', () => {
 
   it('throws for a negative value', () => {
     expect(() => parseMaxUploadBytes('-100')).toThrow(/Invalid MAX_UPLOAD_BYTES/);
+  });
+});
+
+describe('parseUploadTimeBudgetMs', () => {
+  it('returns undefined when UPLOAD_TIME_BUDGET_MS is undefined', () => {
+    expect(parseUploadTimeBudgetMs(undefined)).toBeUndefined();
+  });
+
+  it('parses a valid positive number', () => {
+    expect(parseUploadTimeBudgetMs('5000')).toBe(5000);
+  });
+
+  it('throws for a non-numeric value', () => {
+    expect(() => parseUploadTimeBudgetMs('notanumber')).toThrow(/Invalid UPLOAD_TIME_BUDGET_MS/);
+  });
+
+  it('throws for zero', () => {
+    expect(() => parseUploadTimeBudgetMs('0')).toThrow(/Invalid UPLOAD_TIME_BUDGET_MS/);
+  });
+
+  it('throws for a negative value', () => {
+    expect(() => parseUploadTimeBudgetMs('-100')).toThrow(/Invalid UPLOAD_TIME_BUDGET_MS/);
   });
 });

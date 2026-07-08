@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import { PassThrough } from 'stream';
 import { FrameCountingStorage } from '../../src/upload/frameCountingStorage';
 import { FrameCounter } from '../../src/mp3/frameCounter';
+import { UploadTimeoutError } from '../../src/errors';
 
 describe('FrameCountingStorage._removeFile', () => {
   it('invokes the callback exactly once with no error (no-op, nothing is ever persisted)', () => {
@@ -55,5 +56,58 @@ describe('FrameCountingStorage._handleFile', () => {
     } finally {
       writeSpy.mockRestore();
     }
+  });
+
+  it('aborts with UploadTimeoutError once the configured budget is exceeded, without parsing the chunk', () => {
+    // budgetMs: -1 makes any elapsed time (even 0ms) immediately over budget -- deterministic,
+    // no fake timers or real waiting needed.
+    const writeSpy = jest.spyOn(FrameCounter.prototype, 'write');
+
+    try {
+      const storage = new FrameCountingStorage({ budgetMs: -1 });
+      const stream = new PassThrough();
+      const destroySpy = jest.spyOn(stream, 'destroy');
+      const callback = jest.fn();
+
+      storage._handleFile({} as Request, { stream } as unknown as Express.Multer.File, callback);
+      stream.write(Buffer.from([0xff]));
+
+      expect(destroySpy).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(callback).toHaveBeenCalledWith(expect.any(UploadTimeoutError), undefined);
+      expect(writeSpy).not.toHaveBeenCalled(); // the over-budget chunk is never handed to the parser
+    } finally {
+      writeSpy.mockRestore();
+    }
+  });
+
+  it('ignores a "data" chunk that arrives after the stream has already settled', () => {
+    const writeSpy = jest.spyOn(FrameCounter.prototype, 'write');
+
+    try {
+      const storage = new FrameCountingStorage();
+      const stream = new PassThrough();
+      const callback = jest.fn();
+
+      storage._handleFile({} as Request, { stream } as unknown as Express.Multer.File, callback);
+      stream.emit('error', new Error('settles first')); // settle() called once here
+      stream.emit('data', Buffer.from([0xff, 0xfb, 0x50, 0x00])); // arrives after settling -- must be a no-op
+
+      expect(callback).toHaveBeenCalledTimes(1);
+      expect(writeSpy).not.toHaveBeenCalled();
+    } finally {
+      writeSpy.mockRestore();
+    }
+  });
+
+  it('does not trip the budget for a fast upload under the default/generous budget', () => {
+    const storage = new FrameCountingStorage(); // default 5000ms budget
+    const stream = new PassThrough();
+    const callback = jest.fn();
+
+    storage._handleFile({} as Request, { stream } as unknown as Express.Multer.File, callback);
+    stream.write(Buffer.from([0xff, 0xfb, 0x50, 0x00]));
+
+    expect(callback).not.toHaveBeenCalled(); // no error settled yet -- still well within budget
   });
 });

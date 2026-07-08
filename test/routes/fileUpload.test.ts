@@ -109,6 +109,17 @@ describe('POST /file-upload', () => {
     expect(response.body.error.message).not.toMatch(/at .*\(.*:\d+:\d+\)/); // no stack-trace-like content
   });
 
+  it('returns 408 UPLOAD_TIMEOUT when the per-upload processing time budget is exceeded', async () => {
+    // budgetMs: -1 makes the very first byte immediately over budget -- deterministic,
+    // no real waiting or fake timers needed to exercise this end-to-end.
+    const app = createApp({ budgetMs: -1 });
+
+    const response = await request(app).post('/file-upload').attach('file', FIXTURE_PATH);
+
+    expect(response.status).toBe(408);
+    expect(response.body.error.code).toBe('UPLOAD_TIMEOUT');
+  });
+
   it('returns 500 with a generic message when the counter throws internally', async () => {
     const writeSpy = jest.spyOn(FrameCounter.prototype, 'write').mockImplementation(() => {
       throw new Error('simulated internal parser failure');
