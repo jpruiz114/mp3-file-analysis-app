@@ -156,10 +156,11 @@ assignment.
 
 ```text
 src/
-  server.ts               Entry point
-  app.ts                  Express app factory
+  server.ts               Entry point (parses env vars, starts listening)
+  config.ts                PORT/MAX_UPLOAD_BYTES env var parsing + validation
+  app.ts                   Express app factory
   errors.ts                Typed error hierarchy
-  routes/fileUpload.ts     POST /file-upload route + Multer config
+  routes/fileUpload.ts      POST /file-upload route + Multer config
   upload/frameCountingStorage.ts   Custom Multer StorageEngine
   mp3/
     id3.ts                 ID3v2 tag skip-length calculation
@@ -167,6 +168,15 @@ src/
     vbrTag.ts                Xing/Info/VBRI VBR-tag detection
     frameCounter.ts          Streaming, chunk-boundary-safe frame counter
   middleware/errorHandler.ts   Central error-to-JSON mapping
-test/                      Mirrors src/, plus test/fixtures/sample.mp3
+test/
+  fixtures/sample.mp3      Committed copy of the provided sample
+  support.ts                Shared synthetic-MP3-byte test helpers
+  config.test.ts, support.test.ts, server.test.ts
+  mp3/                      Unit tests, one file per src/mp3/*.ts module
+  routes/fileUpload.test.ts        HTTP-level integration tests (supertest)
+  upload/frameCountingStorage.test.ts
 docs/plans/                Implementation plan this was built from
 ```
+
+Every file under `src/` is at 100% statement/branch/function/line coverage
+(`npx jest --coverage`).
