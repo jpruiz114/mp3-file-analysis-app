@@ -1,8 +1,12 @@
 import * as fs from 'fs';
 import * as http from 'http';
+import express from 'express';
 import request from 'supertest';
 import { createApp } from '../../src/app';
+import { createFileUploadRouter } from '../../src/routes/fileUpload';
 import { FrameCounter } from '../../src/mp3/frameCounter';
+import { FrameCountingStorage } from '../../src/upload/frameCountingStorage';
+import { errorHandler } from '../../src/middleware/errorHandler';
 import { EXPECTED_FIXTURE_FRAME_COUNT, FIXTURE_PATH } from '../support';
 
 describe('POST /file-upload', () => {
@@ -168,5 +172,37 @@ describe('POST /file-upload', () => {
     expect(followUp.status).toBe(200);
 
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it('works when createFileUploadRouter() is called with no options (uses its own default)', async () => {
+    const app = express();
+    app.use(createFileUploadRouter()); // no argument -> exercises the function's own default parameter
+    app.use(errorHandler);
+
+    const response = await request(app).post('/file-upload').attach('file', FIXTURE_PATH);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({ frameCount: EXPECTED_FIXTURE_FRAME_COUNT });
+  });
+
+  it('treats a missing frameCount on req.file as 0 (defensive fallback, not just a real zero count)', async () => {
+    const handleFileSpy = jest
+      .spyOn(FrameCountingStorage.prototype, '_handleFile')
+      .mockImplementation((_req, file, callback) => {
+        // Must still drain file.stream -- busboy won't finish parsing the rest of the
+        // multipart body (and the request will hang) if nothing consumes it.
+        file.stream.resume();
+        file.stream.on('end', () => callback(undefined, {})); // no frameCount key at all
+      });
+
+    try {
+      const app = createApp();
+      const response = await request(app).post('/file-upload').attach('file', FIXTURE_PATH);
+
+      expect(response.status).toBe(422);
+      expect(response.body.error.code).toBe('UNPARSEABLE_MP3');
+    } finally {
+      handleFileSpy.mockRestore();
+    }
   });
 });
