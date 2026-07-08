@@ -57,7 +57,14 @@ Error responses share a consistent shape:
 | Malformed multipart request                 | 400    | `INVALID_MULTIPART` |
 | Upload exceeds the configured size limit    | 413    | `FILE_TOO_LARGE`    |
 | File isn't a parseable MPEG-1 Layer III file | 422    | `UNPARSEABLE_MP3`   |
+| Upload's processing time exceeds the configured budget | 408 | `UPLOAD_TIMEOUT` |
 | Unexpected server error                      | 500    | `INTERNAL_ERROR`    |
+
+The processing time budget defaults to 5 seconds (override with
+`UPLOAD_TIME_BUDGET_MS`, in milliseconds). This is a per-request **timeout**,
+not throttling — it bounds how long any single upload is allowed to run, not
+how many uploads a client can send. See "What I'd do with more time" below
+for why request-volume throttling is a separate, still-open concern.
 
 ## How correctness was verified
 
@@ -126,22 +133,27 @@ assignment.
   validation already rejects the vast majority of false positives, and a dedicated
   test proves near-miss sync bytes don't produce a false count, so this felt like
   reasonable scope to defer rather than build speculatively.
-- **CPU-exhaustion resistance for adversarial uploads, beyond what's already done.**
-  A multi-agent review benchmarked this directly: a large upload made entirely of
-  near-miss sync bytes (bytes that pass the cheap 11-bit sync check but fail deeper
-  validation) costs meaningfully more CPU per byte than a real MP3, since every
-  position still runs the full header-validation logic. I fixed the part of this that
-  was a clear, free win — `parseFrameHeader` now returns shared singleton objects for
+- **CPU-exhaustion resistance for adversarial uploads.** A multi-agent review
+  benchmarked this directly: a large upload made entirely of near-miss sync bytes
+  (bytes that pass the cheap 11-bit sync check but fail deeper validation) costs
+  meaningfully more CPU per byte than a real MP3, since every position still runs the
+  full header-validation logic. Two mitigations are now in place. First, a free
+  constant-factor win — `parseFrameHeader` returns shared singleton objects for
   rejections instead of allocating a fresh object per call, and only reads the header
   bytes it actually needs before the cheap checks run (verified ~2.6x faster on 20MB
-  of worst-case input, with identical output). What's still open: this remains
-  fundamentally O(n) synchronous CPU work with no per-request time/CPU budget, and a
-  determined attacker who also controls TCP write granularity (many tiny chunks) adds
-  further per-chunk overhead on top of that. A full mitigation — a per-request CPU/
-  wall-clock budget, offloading parsing to a worker thread, or rate limiting — would
-  normally sit partly at a reverse-proxy/gateway layer, and the assignment explicitly
-  scopes rate limiting and auth out of this exercise, so I stopped at the safe,
-  verified, zero-risk optimization rather than building request-throttling
+  of worst-case input, with identical output). Second, a per-request wall-clock time
+  budget (`UPLOAD_TIME_BUDGET_MS`, default 5 seconds) aborts any single upload whose
+  processing runs longer than the budget, returning `408 UPLOAD_TIMEOUT` — this bounds
+  the worst case regardless of how adversarial the input is or how a determined
+  attacker slices it into TCP writes (many tiny chunks add per-chunk overhead, but can
+  no longer buy unbounded processing time). What's still open: this is a per-request
+  **timeout**, not throttling — it does nothing to stop a client from sending many
+  uploads back-to-back or concurrently. Request-volume rate limiting (and, further
+  out, offloading parsing to a worker thread so one slow upload can't starve others on
+  the same event loop) would normally sit partly at a reverse-proxy/gateway layer. The
+  assignment doesn't call out rate limiting either way; I judged it out of scope for
+  this exercise's timeframe relative to getting the core parsing correct and
+  well-tested, so I stopped here rather than building request-throttling
   infrastructure under time pressure.
 - **Classify a couple more specific busboy/multer error shapes.** `errorHandler.ts`
   now explicitly maps busboy's "missing multipart boundary" error to `400
