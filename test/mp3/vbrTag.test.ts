@@ -73,6 +73,16 @@ describe('detectVbrTag', () => {
     expect(detectVbrTag(buf, 0, header)).toEqual({ kind: 'insufficient-data' });
   });
 
+  it('returns "insufficient-data" when the Xing/Info check has enough bytes but the VBRI check does not', () => {
+    // Mono's Xing/Info offset (4+17=21) is well short of VBRI's fixed offset (4+32=36), so a
+    // buffer can satisfy the first check while starving the second -- the only way to reach
+    // that specific branch, since for stereo/CRC frames both offsets are identical.
+    const header = makeHeader({ channelMode: CHANNEL_MODE_MONO });
+    const buf = buildFramePayload(null, 0, 30); // >= 21+4=25 (Xing/Info resolves), < 36+4=40 (VBRI doesn't)
+
+    expect(detectVbrTag(buf, 0, header)).toEqual({ kind: 'insufficient-data' });
+  });
+
   it('returns "not-a-tag" when no recognizable magic appears at any expected offset', () => {
     const header = makeHeader({ channelMode: 0 });
     const buf = buildFramePayload(null, 0, 128);
