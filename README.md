@@ -25,7 +25,9 @@ npm run build && npm start   # compiled production build
 ```
 
 The server listens on port `3000` by default (override with `PORT`). The maximum
-upload size defaults to 200MB (override with `MAX_UPLOAD_BYTES`, in bytes).
+upload size defaults to 200MB (override with `MAX_UPLOAD_BYTES`, in bytes). The
+per-upload processing time budget defaults to 5 seconds (override with
+`UPLOAD_TIME_BUDGET_MS`, in milliseconds) — see the error table below.
 
 ## Testing
 
@@ -37,6 +39,11 @@ npm run format    # Prettier
 
 A copy of the provided sample file lives at `test/fixtures/sample.mp3` so the test
 suite is self-contained and reproducible.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, `tsc --noEmit`, and the test
+suite with coverage on every push/PR to `main`. `jest.config.js` enforces a 100%
+coverage threshold (statements/branches/functions/lines), so a coverage regression
+fails CI, not just a local report.
 
 ### Manually testing the endpoint
 
@@ -172,6 +179,7 @@ src/
   config.ts                PORT/MAX_UPLOAD_BYTES env var parsing + validation
   app.ts                   Express app factory
   errors.ts                Typed error hierarchy
+  timeBudget.ts            Pure elapsed-time-vs-budget check (used by frameCountingStorage.ts)
   routes/fileUpload.ts      POST /file-upload route + Multer config
   upload/frameCountingStorage.ts   Custom Multer StorageEngine
   mp3/
@@ -183,11 +191,12 @@ src/
 test/
   fixtures/sample.mp3      Committed copy of the provided sample
   support.ts                Shared synthetic-MP3-byte test helpers
-  config.test.ts, support.test.ts, server.test.ts
+  config.test.ts, support.test.ts, server.test.ts, timeBudget.test.ts
   mp3/                      Unit tests, one file per src/mp3/*.ts module
   routes/fileUpload.test.ts        HTTP-level integration tests (supertest)
   upload/frameCountingStorage.test.ts
 docs/plans/                Implementation plan this was built from
+.github/workflows/ci.yml   GitHub Actions: lint + typecheck + coverage-gated tests
 ```
 
 Every file under `src/` is at 100% statement/branch/function/line coverage
