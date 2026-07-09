@@ -185,29 +185,29 @@ assignment.
 
 ```text
 src/
-  server.ts               Entry point (parses env vars, starts listening)
-  config.ts                PORT/MAX_UPLOAD_BYTES/UPLOAD_TIME_BUDGET_MS env var parsing + validation
-  app.ts                   Express app factory
-  errors.ts                Typed error hierarchy
-  timeBudget.ts            Pure elapsed-time-vs-budget check (used by frameCountingStorage.ts)
-  routes/fileUpload.ts      POST /file-upload route + Multer config
-  upload/frameCountingStorage.ts   Custom Multer StorageEngine
+  server.ts                       Entry point (parses env vars, starts listening)
+  config.ts                       PORT/MAX_UPLOAD_BYTES/UPLOAD_TIME_BUDGET_MS env var parsing + validation
+  app.ts                          Express app factory
+  errors.ts                       Typed error hierarchy
+  timeBudget.ts                   Pure elapsed-time-vs-budget check (used by frameCountingStorage.ts)
+  routes/fileUpload.ts            POST /file-upload route + Multer config
+  upload/frameCountingStorage.ts  Custom Multer StorageEngine
   mp3/
-    id3.ts                 ID3v2 tag skip-length calculation
-    frameHeader.ts          MPEG-1 Layer III frame header parsing
-    vbrTag.ts                Xing/Info/VBRI VBR-tag detection
-    frameCounter.ts          Streaming, chunk-boundary-safe frame counter
-  middleware/errorHandler.ts   Central error-to-JSON mapping
+    id3.ts                        ID3v2 tag skip-length calculation
+    frameHeader.ts                MPEG-1 Layer III frame header parsing
+    vbrTag.ts                     Xing/Info/VBRI VBR-tag detection
+    frameCounter.ts               Streaming, chunk-boundary-safe frame counter
+  middleware/errorHandler.ts      Central error-to-JSON mapping
 test/
-  fixtures/sample.mp3      Committed copy of the provided sample
-  support.ts                Shared synthetic-MP3-byte test helpers
+  fixtures/sample.mp3             Committed copy of the provided sample
+  support.ts                      Shared synthetic-MP3-byte test helpers
   config.test.ts, support.test.ts, server.test.ts, timeBudget.test.ts
-  mp3/                      Unit tests, one file per src/mp3/*.ts module
-  routes/fileUpload.test.ts        HTTP-level integration tests (supertest)
+  mp3/                            Unit tests, one file per src/mp3/*.ts module
+  routes/fileUpload.test.ts       HTTP-level integration tests (supertest)
   upload/frameCountingStorage.test.ts
-.env.example                Documented env vars (copy to .env to override defaults)
-docs/plans/                Implementation plan this was built from
-.github/workflows/ci.yml   GitHub Actions: lint + typecheck + coverage-gated tests
+.env.example                      Documented env vars (copy to .env to override defaults)
+docs/plans/                       Implementation plan this was built from
+.github/workflows/ci.yml          GitHub Actions: lint + typecheck + coverage-gated tests
 ```
 
 Every file under `src/` is at 100% statement/branch/function/line coverage
