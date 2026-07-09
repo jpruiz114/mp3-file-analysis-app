@@ -7,7 +7,7 @@ import type { Server } from 'http';
 // module registry separate from Node's native one) clears Jest's registry without
 // wrapping a callback, so async continuations like app.listen()'s callback keep
 // running normally afterward instead of executing inside an already-torn-down sandbox.
-function requireFreshServerModule(): { app: unknown; server: Server } {
+function requireFreshServerModule(): { app: unknown; server: Server; stopGracefulShutdown: () => void } {
   jest.resetModules();
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   return require('../src/server');
@@ -38,6 +38,7 @@ describe('server.ts entry point', () => {
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('listening on port'));
     } finally {
       logSpy.mockRestore();
+      mod.stopGracefulShutdown();
       await new Promise<void>((resolve) => mod.server.close(() => resolve()));
     }
   });
@@ -51,8 +52,30 @@ describe('server.ts entry point', () => {
     try {
       await new Promise<void>((resolve) => mod.server.once('listening', () => resolve()));
     } finally {
+      mod.stopGracefulShutdown();
       await new Promise<void>((resolve) => mod.server.close(() => resolve()));
     }
+  });
+
+  it('registers SIGTERM/SIGINT graceful-shutdown listeners, removed by stopGracefulShutdown', async () => {
+    process.env.PORT = '0';
+    const sigtermBefore = process.listenerCount('SIGTERM');
+    const sigintBefore = process.listenerCount('SIGINT');
+
+    const mod = requireFreshServerModule();
+
+    try {
+      await new Promise<void>((resolve) => mod.server.once('listening', () => resolve()));
+
+      expect(process.listenerCount('SIGTERM')).toBe(sigtermBefore + 1);
+      expect(process.listenerCount('SIGINT')).toBe(sigintBefore + 1);
+    } finally {
+      mod.stopGracefulShutdown();
+      await new Promise<void>((resolve) => mod.server.close(() => resolve()));
+    }
+
+    expect(process.listenerCount('SIGTERM')).toBe(sigtermBefore);
+    expect(process.listenerCount('SIGINT')).toBe(sigintBefore);
   });
 
   it('throws at import time for an invalid PORT env var', () => {

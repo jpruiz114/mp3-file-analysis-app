@@ -39,6 +39,11 @@ cp .env.example .env
 
 `.env` is gitignored — it's local-only, not committed.
 
+The server shuts down gracefully on `SIGTERM`/`SIGINT` (e.g. `Ctrl+C`, or a container
+stop/redeploy): it stops accepting new connections but lets any upload already in
+progress finish, up to the time budget plus 2 extra seconds of headroom, before
+exiting. If that headroom runs out, it force-exits rather than hanging.
+
 ## Testing
 
 ```bash
@@ -190,6 +195,7 @@ src/
   app.ts                          Express app factory
   errors.ts                       Typed error hierarchy
   timeBudget.ts                   Pure elapsed-time-vs-budget check (used by frameCountingStorage.ts)
+  gracefulShutdown.ts             SIGTERM/SIGINT handling: stop accepting, drain, then exit
   routes/fileUpload.ts            POST /file-upload route + Multer config
   upload/frameCountingStorage.ts  Custom Multer StorageEngine
   mp3/
@@ -201,7 +207,7 @@ src/
 test/
   fixtures/sample.mp3             Committed copy of the provided sample
   support.ts                      Shared synthetic-MP3-byte test helpers
-  config.test.ts, support.test.ts, server.test.ts, timeBudget.test.ts
+  config.test.ts, support.test.ts, server.test.ts, timeBudget.test.ts, gracefulShutdown.test.ts
   mp3/                            Unit tests, one file per src/mp3/*.ts module
   routes/fileUpload.test.ts       HTTP-level integration tests (supertest)
   upload/frameCountingStorage.test.ts

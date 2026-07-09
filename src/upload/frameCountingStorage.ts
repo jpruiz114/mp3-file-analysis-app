@@ -26,7 +26,7 @@ type HandleFileCallback = (error?: unknown, info?: Partial<Express.Multer.File>)
 // (comfortably sub-second even at the 200MB default upload cap on ordinary hardware),
 // not scientifically calibrated against production traffic or concurrency -- see the
 // README for why a real deployment would need to re-tune this against actual load.
-const DEFAULT_BUDGET_MS = 5000;
+export const DEFAULT_BUDGET_MS = 5000;
 
 export interface FrameCountingStorageOptions {
   /** Overrides the default 5-second per-upload processing time budget. */
