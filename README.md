@@ -186,7 +186,7 @@ assignment.
 ```text
 src/
   server.ts               Entry point (parses env vars, starts listening)
-  config.ts                PORT/MAX_UPLOAD_BYTES env var parsing + validation
+  config.ts                PORT/MAX_UPLOAD_BYTES/UPLOAD_TIME_BUDGET_MS env var parsing + validation
   app.ts                   Express app factory
   errors.ts                Typed error hierarchy
   timeBudget.ts            Pure elapsed-time-vs-budget check (used by frameCountingStorage.ts)
@@ -205,6 +205,7 @@ test/
   mp3/                      Unit tests, one file per src/mp3/*.ts module
   routes/fileUpload.test.ts        HTTP-level integration tests (supertest)
   upload/frameCountingStorage.test.ts
+.env.example                Documented env vars (copy to .env to override defaults)
 docs/plans/                Implementation plan this was built from
 .github/workflows/ci.yml   GitHub Actions: lint + typecheck + coverage-gated tests
 ```
