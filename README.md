@@ -29,6 +29,16 @@ upload size defaults to 200MB (override with `MAX_UPLOAD_BYTES`, in bytes). The
 per-upload processing time budget defaults to 5 seconds (override with
 `UPLOAD_TIME_BUDGET_MS`, in milliseconds) — see the error table below.
 
+All three variables are optional; `npm run dev`/`npm start` work with no `.env` file
+at all (Node's `--env-file-if-exists` flag skips loading rather than failing when one
+isn't present). To override any of them, copy `.env.example` to `.env`:
+
+```bash
+cp .env.example .env
+```
+
+`.env` is gitignored — it's local-only, not committed.
+
 ## Testing
 
 ```bash

@@ -4,12 +4,12 @@
   "description": "API that counts MPEG-1 Audio Layer III frames in an uploaded MP3 file",
   "main": "dist/server.js",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.12.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
-    "dev": "tsx watch src/server.ts",
+    "start": "node --env-file-if-exists=.env dist/server.js",
+    "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "jest"
